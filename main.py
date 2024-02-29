@@ -9,21 +9,36 @@ from ttkthemes import ThemedTk
 class SpellbookApp(ThemedTk):
     def __init__(self):
         super().__init__()
-        self.set_theme("black")  # Set the theme to "arc" for a modern look
-        self.configure(bg='black')
+        self.set_theme('arc')  # Set the theme to "arc" for a modern look
+        self.configure(bg='#161A30')
         self.style = ttk.Style()
-        self.style.configure("TLabel", foreground="white", background="black")
-        self.style.configure("TButton", foreground="white", background="black")
+        self.style.configure("TLabel", foreground="white", background="#161A30")
+        self.style.configure("TLabel1.TLabel", foreground="black", background="#b6bbc4")
+        self.style.configure("TButton", foreground="#161A30", background="#161a30")
+        self.style.configure("TButton1.TButton", foreground="#161A30", background="#b6bbc4")
+        self.style.configure("TEntry", foreground="#161A30", background="#F0ECE5")
+        self.style.configure("TListbox", foreground="#161A30", background="#F0ECE5", bordercolor="#161A30")
+        self.style.configure("TScrollbar", foreground="#161A30", background="#F0ECE5")
+        self.style.configure("TFrame", foreground="#161A30", background="#161A30")
+        self.style.configure("Frame1.TFrame", foreground="#b6bbc4", background="#b6bbc4")
+        self.style.configure("TNotebook", background="#b6bbc4", foreground="#b6bbc4")
+        self.style.configure("TNotebook.Tab", background="#161a30", foreground="#161a30")
         self.title("D&D Spellbook")
         self.geometry("400x300")
         
-        self.search_spell_label = ttk.Label(self, text="Search for a spell", font=("Helvetica", 14, "bold"))
-        self.search_spell_label.pack(anchor=tk.NW, padx=10, pady=10)
+        self.character_name_label = ttk.Label(self, text="Character: " + "Cygnus", font=("Helvetica", 14, "bold"))
+        self.character_name_label.pack(padx=10, pady=10, anchor=tk.NW)
+        
+        search_spell_frame = ttk.Frame(self)
+        search_spell_frame.pack(anchor=tk.NW, pady=10)
+        
+        self.search_spell_label = ttk.Label(search_spell_frame, text="Search for a spell: ", font=("Helvetica", 14, "bold"))
+        self.search_spell_label.pack(side=tk.LEFT, padx=10, pady=10)
         
         self.spell_search_var = tk.StringVar()
         self.spell_search_var.trace_add('write', self.update_spell_list)
         
-        self.spell_search_entry = ttk.Entry(self, textvariable=self.spell_search_var)
+        self.spell_search_entry = ttk.Entry(search_spell_frame, textvariable=self.spell_search_var)
         self.spell_search_entry.pack(anchor=tk.NW, padx=10, pady=10)
 
         button_frame = ttk.Frame(self)
@@ -41,30 +56,57 @@ class SpellbookApp(ThemedTk):
         self.spell_details = ttk.Label(self, text="Select a spell to view details")
         self.spell_details.pack(anchor=tk.NW, padx=10, pady=10)
 
-        self.spellbook = tk.Listbox(self, background="darkgray", foreground="black", selectbackground="black", selectforeground="white")
+        self.spellbook = tk.Listbox(self, background="#F0ECE5", foreground="black", selectbackground="#161a30", selectforeground="white")
         self.spellbook.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         self.all_spell_data = hs.import_excel()
         
         self.spellbook.bind("<<ListboxSelect>>", self.show_spell_details)
         
-        self.character_name_label = ttk.Label(self, text="Character: " + "Cygnus", font=("Helvetica", 14, "bold"))
-        self.character_name_label.pack(pady=10)
-        
         self.spell_levels = ["Cantrip", "1st Level", "2nd Level", "3rd Level", "4th Level", "5th Level", "6th Level", "7th Level", "8th Level", "9th Level"]
-        self.notebook = ttk.Notebook(self)
+        self.spell_slots = [0, 4, 3, 3, 3, 2, 1, 1, 1, 1]
+        self.notebook = ttk.Notebook(self, style="TNotebook")
         
-        for level in self.spell_levels:
-            spell_level_frame = ttk.Frame(self.notebook)
+        self.spell_level_listboxes = {}
+        
+        for i, level in enumerate(self.spell_levels):
+            spell_level_frame = ttk.Frame(self.notebook, style="Frame1.TFrame")
             spell_level_frame.pack(fill=tk.BOTH, expand=True)
             
-            spell_level_listbox = tk.Listbox(spell_level_frame, background="darkgray", foreground="black", selectbackground="black", selectforeground="white")
+            if i == 0:
+                spell_slots_label = ttk.Label(spell_level_frame, text="", style="TLabel1.TLabel")
+            else:
+                spell_slots_label = ttk.Label(spell_level_frame, text="Spell Slots: " + str(self.spell_slots[i]), style="TLabel1.TLabel")
+            spell_slots_label.pack(side=tk.TOP, anchor=tk.W, padx=10, pady=10)
+            
+            cast_spell_button = ttk.Button(spell_level_frame, text="Cast Spell", command=lambda: self.cast_spell(), style="TButton1.TButton")
+            cast_spell_button.pack(side=tk.TOP, anchor=tk.W, padx=10, pady=10)
+            
+            spell_level_listbox = tk.Listbox(spell_level_frame, background="#F0ECE5", foreground="black", selectbackground="#161a30", selectforeground="white")
             spell_level_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             
+            self.spell_level_listboxes[level] = spell_level_listbox
+            
             self.notebook.add(spell_level_frame, text=level)
-        
+
         self.notebook.pack(fill=tk.BOTH, expand=True)
-        self.load_spell_list()  
+        self.load_spell_list()
+    
+    def cast_spell(self):
+        level = self.notebook.index(self.notebook.select())
+        selected_tab = self.notebook.nametowidget(self.notebook.select())
+        listbox = self.spell_level_listboxes[self.spell_levels[level]]
+        selection = listbox.get(listbox.curselection())
+        if selection:
+            if self.spell_slots[level] > 0:
+                self.spell_slots[level] -= 1
+            for child in selected_tab.winfo_children():
+                if isinstance(child, ttk.Label):
+                    child.config(text="Spell Slots: " + str(self.spell_slots[level]))
+                    
+            self.save_spell_list()
+        else:
+            print("No spell selected")
         
     def update_spell_list(self, *args):
         spell_search = self.spell_search_var.get().lower()
@@ -84,7 +126,7 @@ class SpellbookApp(ThemedTk):
                 spell_level = self.all_spell_data[i]["Level"]
                 self.notebook.select(spell_level)
                 spell_level_frame = self.notebook.winfo_children()[int(spell_level)]
-                spell_level_listbox = spell_level_frame.winfo_children()[0]
+                spell_level_listbox = spell_level_frame.winfo_children()[2]
                 spell_level_listbox.insert(tk.END, self.all_spell_data[i]["Name"]) 
                 self.spell_book_items = self.spellbook.get(0, tk.END)
                 
@@ -481,14 +523,14 @@ class SpellbookApp(ThemedTk):
       
     def delete_spell(self):
         spellname = self.spellbook.get(self.spellbook.curselection())
-        self.spellbook.delete(tk.ANCHOR)
+        self.spellbook.delete(self.spellbook.curselection())
         for i in range(len(self.all_spell_data)):
             if spellname == self.all_spell_data[i]["Name"]:
                 spell_level = self.all_spell_data[i]["Level"]
                 self.notebook.select(spell_level)
-                spell_level_frame = self.notebook.winfo_children()[spell_level]
-                spell_level_listbox = spell_level_frame.winfo_children()[0]
-                spell_level_listbox.delete(tk.ANCHOR)
+                spell_level_frame = self.notebook.winfo_children()[int(spell_level)]
+                spell_level_listbox = spell_level_frame.winfo_children()[2]
+                spell_level_listbox.delete(spell_level_listbox.get(0, tk.END).index(spellname))
                 break
             
         self.spell_book_items = self.spellbook.get(0, tk.END)
@@ -533,15 +575,28 @@ class SpellbookApp(ThemedTk):
     
     def save_spell_list(self):
         spell_list = self.spellbook.get(0, tk.END)
+        spell_slots = self.spell_slots
+        
+        data = {
+            "Spells": spell_list,
+            "Spell Slots": spell_slots,
+        }
+        
         with open("spell_list.json", "w") as f:
-            json.dump(spell_list, f)
+            json.dump(data, f)
         print("Spell list saved to spell_list.json")
         
     def load_spell_list(self):
         try:
             with open("spell_list.json", "r") as f:
-                spell_list = json.load(f)
-                for spell in spell_list:
+                data = json.load(f)
+                
+                self.spell_slots = data["Spell Slots"]
+                for i in range(len(self.spell_slots)):
+                    if i != 0:
+                        self.notebook.winfo_children()[i].winfo_children()[0].config(text="Spell Slots: " + str(self.spell_slots[i]), style="TLabel1.TLabel")
+                
+                for spell in data["Spells"]:
                     self.add_spells(spell)
                 print("Spell list loaded from spell_list.json")
         except FileNotFoundError:
